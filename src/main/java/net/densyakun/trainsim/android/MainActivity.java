@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        railwaymanager.setFast(false);
+        railwaymanager.setTimeScale(RailwayManager.REAL_TIMESCALE);
         railwaymanager.stop();
     }
 
@@ -56,7 +56,11 @@ public class MainActivity extends Activity {
         } else if (item.getTitle().equals("更新")) {
             railwaymanager.update();
         } else if (item.getTitle().equals("倍速切り替え")) {
-            railwaymanager.setFast(!railwaymanager.isFast());
+            if (railwaymanager.getTimeScale() == RailwayManager.REAL_TIMESCALE) {
+                railwaymanager.setTimeScale(3);
+            } else {
+                railwaymanager.setTimeScale(RailwayManager.REAL_TIMESCALE);
+            }
         } else if (item.getTitle().equals("停止")) {
             railwaymanager.stop();
         } else if (item.getTitle().equals("[test]")) {

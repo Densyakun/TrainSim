@@ -127,7 +127,7 @@ public final class TIDView extends View implements RailwayListener {
 			paint.setColor(Color.WHITE);
 			canvas.drawText(b, (float) (lines.get(a).getLength() / 2) - (c / 2) + 32, 128 * (a + 1) - 16, paint);
 		}
-		String a = (railwaymanager.isPlaying() ? "再生中" + (railwaymanager.isFast() ? "x3" : "x1") : "停止中") + "(" + railwaymanager.getTime() + ")";
+		String a = (railwaymanager.isPlaying() ? "再生中:" + railwaymanager.getTimeScale() : "停止中") + "(" + railwaymanager.getTime() + ")";
 		paint.setColor(Color.LTGRAY);
 		canvas.drawText(a, 32 + 1, 4 + 16 + 1, paint);
 		paint.setColor(Color.GREEN);

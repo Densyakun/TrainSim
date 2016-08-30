@@ -17,14 +17,8 @@ public final class Diagram {
 	public List<Station> getStopStationList() {
 		return stopstationlist;
 	}
-	public void setStopstationlist(List<Station> stopstationlist) {
+	public void setStopStationList(List<Station> stopstationlist) {
 		this.stopstationlist = stopstationlist;
-	}
-	public Station stop() {
-		if (0 < stopstationlist.size()) {
-			return stopstationlist.remove(0);
-		}
-		return null;
 	}
 	@Override
 	public boolean equals(Object arg0) {

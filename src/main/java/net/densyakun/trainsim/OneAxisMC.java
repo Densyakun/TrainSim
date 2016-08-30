@@ -9,13 +9,12 @@ public final class OneAxisMC extends MasterController {
 	@Override
 	public void setPower(Train train, double accel, double brake) {
 		accel = accel < 0 ? 0 : accel > 1 ? 1 : accel;
-		brake = brake < 0 ? 0 : brake > 1 ? 1 : brake;
-		if (brake == 0) {
+		if ((brake = brake < 0 ? 0 : brake > 1 ? 1 : brake) == 0) {
 			train.setAccel(1 * Math.ceil(accel * maxaccel) / maxaccel);
 			train.setBrake(0);
 		} else {
 			train.setAccel(0);
-			train.setBrake(1 * Math.ceil(brake * maxbrake) / (maxbrake + 1));
+			train.setBrake(1 * Math.ceil(brake * (maxbrake + 1)) / (maxbrake + 1));
 		}
 	}
 }

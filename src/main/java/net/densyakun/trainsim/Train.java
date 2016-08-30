@@ -52,7 +52,7 @@ public class Train {
 			this.position = getLength() / 2;
 		}
 	}
-	public final double getMaxSpeed() {
+	public final int getMaxSpeed() {
 		return maxspeed;
 	}
 	public final double getSpeed() {
@@ -120,8 +120,8 @@ public class Train {
 				}
 				c += d * 1000 / 60 / 60 / 5;
 			}*/
-			for (double d = Math.max(speed, -speed); d > setspeed; c += d * 1000 / 60 / 60 / 5) {
-				d -= deceleration / 5;
+			for (double d = Math.max(speed, -speed); d > setspeed; c += d * 1000 / 60 / 60 / RailwayManager.MAXSPEED_AUTO_UPDATE) {
+				d -= deceleration / RailwayManager.MAXSPEED_AUTO_UPDATE;
 				if (d < 0) {
 					d = 0;
 				}
@@ -132,5 +132,48 @@ public class Train {
 	@Override
 	public String toString() {
 		return name;
+	}
+	//衝突の判定はRailwayManagerが行う
+	public void updatetick(RailwayManager railwaymanager) {
+		if (driver != null) {
+			driver.updatetick(railwaymanager, this);
+		}
+		if (!broken) {
+			if (accel != 0) {
+				if ((reverser == Reverser.back) && (speed < 5)) {
+					speed -= (acceleration * accel * RailwayManager.MAXSPEED_AUTO_UPDATE / 1000) * ((500 - speed) / 500);
+				} else if ((reverser == Reverser.forward) && (speed > -5)) {
+					speed += (acceleration * accel * RailwayManager.MAXSPEED_AUTO_UPDATE / 1000) * ((500 - speed) / 500);
+				}
+			}
+			if (speed < 0) {
+				speed += deceleration * brake * RailwayManager.MAXSPEED_AUTO_UPDATE / 1000;
+				if (0 < speed) {
+					speed = 0;
+				}
+			} else if (speed > 0) {
+				speed -= deceleration * brake * RailwayManager.MAXSPEED_AUTO_UPDATE / 1000;
+				if (0 > speed) {
+					speed = 0;
+				}
+			}
+		}
+		if (speed < 0) {
+			if (accel == 0) {
+				speed += 0.1 * RailwayManager.MAXSPEED_AUTO_UPDATE / 1000;//TODO 空気抵抗・摩擦については後々正確に作る予定
+			}
+		} else if (speed > 0) {
+			if (accel == 0) {
+				speed -= 0.1 * RailwayManager.MAXSPEED_AUTO_UPDATE / 1000;//TODO 〃
+			}
+		}
+		if (speed != 0) {
+			teleport(position + speed * RailwayManager.MAXSPEED_AUTO_UPDATE / 60 / 60);
+		}
+	}
+	public void stop() {
+		if (driver != null) {
+			driver.stop();
+		}
 	}
 }
