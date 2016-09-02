@@ -5,6 +5,7 @@ import java.util.List;
 
 import net.densyakun.trainsim.pack.RailwayPack;
 public final class RailwayManager implements Runnable {
+	public static final String VERSION = "0.0.1a";
 	public static int NOT_AUTO_UPDATE = 0;
 	public static int MAXSPEED_AUTO_UPDATE = 50;
 	public static int REAL_TIMESCALE = 1;
@@ -17,7 +18,6 @@ public final class RailwayManager implements Runnable {
 	private List<RailwayListener> listeners = new ArrayList<RailwayListener>();
 	private List<Line> lines = new ArrayList<Line>();
 	private List<Train> trains = new ArrayList<Train>();
-
 	@Override
 	public void run() {
 		while (updateinterval != NOT_AUTO_UPDATE) {
@@ -32,7 +32,6 @@ public final class RailwayManager implements Runnable {
 		}
 		thread = null;
 	}
-
 	public List<Line> getLines() {
 		return lines;
 	}
@@ -139,19 +138,19 @@ public final class RailwayManager implements Runnable {
 								boolean f = train_a_position - train_a_length / 2 <= train_b_position - train_b_length / 2 && train_a_position + train_a_length / 2 >= train_b_position - train_b_length / 2;
 								double collision_point = (train_a_position + train_a_length / 2 + train_b_position - train_b_length / 2) / 2;
 								if (e) {
-									train_a.teleport(collision_point - train_a_length / 2);
-									train_b.teleport(collision_point + train_b_length / 2);
+									train_a.teleport(this, collision_point - train_a_length / 2);
+									train_b.teleport(this, collision_point + train_b_length / 2);
 								}
 								if (f) {
-									train_a.teleport(collision_point + train_a_length / 2);
-									train_b.teleport(collision_point - train_b_length / 2);
+									train_a.teleport(this, collision_point + train_a_length / 2);
+									train_b.teleport(this, collision_point - train_b_length / 2);
 								}
 								if (e || f) {
 									double train_a_speed = train_a.getSpeed();
 									double train_b_speed = train_b.getSpeed();
-									train_a_speed = train_b_speed = (train_a_speed + train_b_speed) / 4;
-									trainBroken(train_a);
-									trainBroken(train_b);
+									train_a_speed = train_b_speed = (train_a_speed + train_b_speed) / 2;
+									trainAccident(train_a, AccidentCause.crush);
+									trainAccident(train_b, AccidentCause.crush);
 								}
 							}
 						}
@@ -175,17 +174,17 @@ public final class RailwayManager implements Runnable {
 		}
 	}
 
-	public void trainBroken(Train train) {
-		if (!train.isBroken()) {
-			train.broken();
+	public void trainAccident(Train train, AccidentCause accidentcause) {
+		if (!train.getAccidentCause().isBroken()) {
+			train.Accident(accidentcause);
 			for (int a = 0; a < listeners.size(); a++) {
-				listeners.get(a).trainBroken(this, train);
+				listeners.get(a).trainAccident(this, train, accidentcause);
 			}
 		}
 	}
 
 	public void trainStopped(Train train, Station station) {
-		train.stop();
+		train.stopStation();
 		for (int a = 0; a < listeners.size(); a++) {
 			listeners.get(a).trainStopped(this, train, station);
 		}

@@ -9,11 +9,10 @@ import net.densyakun.trainsim.Rail;
 import net.densyakun.trainsim.Station;
 import net.densyakun.trainsim.Train;
 import net.densyakun.trainsim.TrainDriver;
-import net.densyakun.trainsim.TrainSimMath;
 import net.densyakun.trainsim.pack.RailwayPack;
 public final class RailwayPack_KeihinTohokuLine extends RailwayPack {
 	public RailwayPack_KeihinTohokuLine() {
-		Line line = new Line("東北本線上り(京浜東北線南行)" + getLines().size(), TrainSimMath.getSpeedLevel(90));
+		Line line = new Line("東北本線上り(京浜東北線南行)" + getLines().size(), 1067, 90);
 		LineColor color = new LineColor(51, 153, 238);
 		line.setLineColor(color);
 		Rail rail = new Station(210, "大宮駅");
@@ -117,7 +116,7 @@ public final class RailwayPack_KeihinTohokuLine extends RailwayPack {
 		double b = 0;
 		for (int a = 0; a < line.getRails().size() / 2; a++) {
 			if (line.getRails().get(a) instanceof Station) {
-				Train train = new Train_E233_1000("ウラ" + (100 + a + 1) + "編成", line, b + line.getRails().get(a).getLength() / 2);
+				Train train = new Train_E233_1000("ウラ" + (100 + a + 1) + "編成", line, b + line.getRails().get(a).getLength() / 2, false);
 				train.setLineColor(color);
 				TrainDriver driver = new TrainDriver("電車君" + a + "号");
 				List<Station> stopstationlist = new ArrayList<Station>();

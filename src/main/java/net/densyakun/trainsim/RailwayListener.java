@@ -6,6 +6,6 @@ public interface RailwayListener {
 	public void addLine(RailwayManager railwaymanager, Line line);
 	public void addTrain(RailwayManager railwaymanager, Train train);
 	public void clearRailway(RailwayManager railwaymanager);
-	public void trainBroken(RailwayManager railwaymanager, Train train);
+	public void trainAccident(RailwayManager railwaymanager, Train train, AccidentCause accidentcause);
 	public void trainStopped(RailwayManager railwaymanager, Train train, Station station);
 }

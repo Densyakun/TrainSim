@@ -5,7 +5,7 @@ public final class TrainDriver {
 	private Diagram diagram;
 	//private List<Station> passedstationlist = new ArrayList<Station>();
 	private int passedstations = 0;
-	private boolean acceled = false;
+	private boolean acceled = false;//再加速済みかどうか（速度を一定に保つために行う頻繁な再加速を安定した再加速にするために必要）
 	public TrainDriver(String name) {
 		this.name = name;
 	}
@@ -76,25 +76,23 @@ public final class TrainDriver {
 				acceled = false;
 			} else {
 				double stoppable_distance = train.getBrakeDistance(0);
-				int maxspeed = Math.min(TrainSimMath.getSpeed(train.getMaxSpeed()), TrainSimMath.getSpeed(train.getRunningLine().getLimitSpeed()));
-				
+				int maxspeed = Math.min(train.getMaxSpeed(), train.getRunningLine().getLimitSpeed());
 				if (speed >= maxspeed) {
 					acceled = true;
 				}
-				
 				double a = 0;
 				for (int b = 0; b < train.getRunningLine().getRails().size(); b++) {
 					if (train.getRunningLine().getRails().get(b).getLimitSpeed() != null) {
 						if (a + train.getRunningLine().getRails().get(b).getLength() >= train.getPosition() - train.getLength() / 2 && a <= train.getPosition() + train.getLength() / 2) {
-							maxspeed = Math.min(maxspeed, TrainSimMath.getSpeed(train.getRunningLine().getRails().get(b).getLimitSpeed()));
+							maxspeed = Math.min(maxspeed, train.getRunningLine().getRails().get(b).getLimitSpeed());
 						}
 						if (speed < 0 && train.getPosition() - train.getLength() / 2 > a + train.getRunningLine().getRails().get(b).getLength()) {
-							double i = train.getBrakeDistance(TrainSimMath.getSpeed(train.getRunningLine().getRails().get(b).getLimitSpeed()));
+							double i = train.getBrakeDistance(train.getRunningLine().getRails().get(b).getLimitSpeed());
 							if (train.getPosition() - train.getLength() / 2 + i < a + train.getRunningLine().getRails().get(b).getLength()) {
 								brake = Math.max(brake, Math.max(2.0 / 3, -i / (train.getPosition() - a + train.getRunningLine().getRails().get(b).getLength())));
 							}
 						} else if (speed != 0 && train.getPosition() + train.getLength() / 2 < a) {
-							double i = train.getBrakeDistance(TrainSimMath.getSpeed(train.getRunningLine().getRails().get(b).getLimitSpeed()));
+							double i = train.getBrakeDistance(train.getRunningLine().getRails().get(b).getLimitSpeed());
 							if (train.getPosition() + train.getLength() / 2 + i > a) {
 								brake = Math.max(brake, Math.max(2.0 / 3, i / (a - train.getPosition())));
 							}
@@ -124,7 +122,7 @@ public final class TrainDriver {
 							break;
 						}
 					}
-					
+
 					double collectspeed = Math.max(speed, -speed);
 					double targetspeed = acceled ? maxspeed - 5 : maxspeed;
 					if ((accel = train.getBrake() < 0.5 && collectspeed < targetspeed ? (targetspeed - collectspeed) / train.getAcceleration() : 0) != 0 |
@@ -133,10 +131,15 @@ public final class TrainDriver {
 					}
 				}
 			}
+
+			train.setReverser(Reverser.forward);
+			accel = 1;
+			brake = 0;
+
 			train.getMasterController().setPower(train, accel, brake);
 		}
 	}
-	public void stop() {
+	public void stopStation() {
 		passedstations++;
 		/*List<Station> stopstationlist = diagram.getStopStationList();
 		if (0 < stopstationlist.size()) {

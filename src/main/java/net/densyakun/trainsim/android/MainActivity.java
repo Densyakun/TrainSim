@@ -10,6 +10,7 @@ import android.widget.ScrollView;
 
 import net.densyakun.trainsim.RailwayManager;
 import net.densyakun.trainsim.pack.jreast.RailwayPack_KeihinTohokuLine;
+
 public class MainActivity extends Activity {
     private RailwayManager railwaymanager;
     @Override

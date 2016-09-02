@@ -7,13 +7,13 @@ import android.os.Handler;
 import android.view.View;
 import android.widget.LinearLayout;
 
+import net.densyakun.trainsim.AccidentCause;
 import net.densyakun.trainsim.Line;
 import net.densyakun.trainsim.LineColor;
 import net.densyakun.trainsim.RailwayListener;
 import net.densyakun.trainsim.RailwayManager;
 import net.densyakun.trainsim.Station;
 import net.densyakun.trainsim.Train;
-import net.densyakun.trainsim.TrainSimMath;
 
 import java.util.List;
 
@@ -68,7 +68,7 @@ public final class TIDView extends View implements RailwayListener {
 				}
 				String d = (lines.get(a).getRails().get(b) instanceof Station ? ((Station) lines.get(a).getRails().get(b)).getName() : "") + "(" + (double) Math.round(lines.get(a).getRails().get(b).getLength() / 100) / 10 + "km";
 				if (lines.get(a).getRails().get(b).getLimitSpeed() != null) {
-					d += ", limitspeed: " + TrainSimMath.getSpeed(lines.get(a).getRails().get(b).getLimitSpeed()) + "km/h";
+					d += ", limitspeed: " + lines.get(a).getRails().get(b).getLimitSpeed() + "km/h";
 				}
 				d += ")";
 				float e = paint.measureText(d);
@@ -120,7 +120,7 @@ public final class TIDView extends View implements RailwayListener {
 					canvas.drawText(c, 32 + (float) (railwaymanager.getTrains().get(b).getPosition() - railwaymanager.getTrains().get(b).getLength() / 2), 128 * (a + 1), paint);
 				}
 			}
-			String b = lines.get(a).getName() + "(" + (double) Math.round(lines.get(a).getLength() / 100) / 10 + "km, max: " + TrainSimMath.getSpeed(lines.get(a).getLimitSpeed()) + "km/h)";
+			String b = lines.get(a).getName() + "(" + (double) Math.round(lines.get(a).getLength() / 100) / 10 + "km, max: " + lines.get(a).getLimitSpeed() + "km/h)";
 			float c = paint.measureText(b);
 			paint.setColor(Color.LTGRAY);
 			canvas.drawText(b, (float) (lines.get(a).getLength() / 2) - (c / 2) + 32 + 1, 128 * (a + 1) - 16 + 1, paint);
@@ -163,8 +163,8 @@ public final class TIDView extends View implements RailwayListener {
 		invalidateinit();
 	}
 	@Override
-	public void trainBroken(RailwayManager railwaymanager, Train train) {
-		setBackgroundColor(Color.RED);
+	public void trainAccident(RailwayManager railwaymanager, Train train, AccidentCause accidentcause) {
+		//setBackgroundColor(Color.RED);
 		aaa = true;
 		invalidateinit();
 	}
