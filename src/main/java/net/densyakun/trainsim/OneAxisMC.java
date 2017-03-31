@@ -1,7 +1,8 @@
 package net.densyakun.trainsim;
+//ワンハンドルマスコン
 public final class OneAxisMC extends MasterController {
-	private int maxaccel = 3;
-	private int maxbrake = 3;
+	private int maxaccel = 3;//加速ノッチ数
+	private int maxbrake = 3;//ブレーキノッチ数(非常ノッチを除く)
 	public OneAxisMC(int maxaccel, int maxbrake) {
 		this.maxaccel = maxaccel < 3 ? 3 : maxaccel > 30 ? 30 : maxaccel;
 		this.maxbrake = maxbrake < 3 ? 3 : maxbrake > 30 ? 30 : maxbrake;

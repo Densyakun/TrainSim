@@ -1,9 +1,10 @@
 package net.densyakun.trainsim;
 import java.util.ArrayList;
 import java.util.List;
+//列車のダイヤ
 public final class Diagram {
-	private String name;
-	private List<Station> stopstationlist;
+	private String name;//ダイヤの名前(仮)
+	private List<Station> stopstationlist;//停車駅のリスト
 	public Diagram(String name) {
 		this(name, new ArrayList<Station>());
 	}

@@ -4,20 +4,48 @@ import java.util.Date;
 import java.util.List;
 
 import net.densyakun.trainsim.pack.RailwayPack;
+//TrainSimを扱う上で必ず使う基本クラス
 public final class RailwayManager implements Runnable {
-	public static final String VERSION = "0.0.1a";
-	public static int NOT_AUTO_UPDATE = 0;
-	public static int MAXSPEED_AUTO_UPDATE = 50;
-	public static int REAL_TIMESCALE = 1;
-	private boolean playing = false;
-	private int timescale = REAL_TIMESCALE;
-	private Thread thread;
-	private int updateinterval = NOT_AUTO_UPDATE;
-	private Date update = new Date();
-	private Date time = new Date();
+	public static final String VERSION = "0.0.2a";//TrainSimのバージョン
+
+
+	/*時間の処理-START-
+
+	時間を再生するにはplay()を実行する。
+	時間を停止するにはstop()を実行する。
+	時間を更新するにはupdate()を実行する。
+	更新すると現実の経過時間が反映される。
+
+	setTimeScale(timescale)でupdate()が実行された際の現実時間の経過時間を倍速にする設定もできる。
+
+	自動でupdateを実行するリアルタイム機能がある。
+	setUpdateinterval(updateinterval)で設定できる。
+	updateintervalには更新間隔(ミリ秒)を代入する。
+	自動で時間を進めない場合はupdateintervalにNOT_AUTO_UPDATEを入れる。*/
+
+	public static int NOT_AUTO_UPDATE = 0;//自動で時間を進めない
+	public static int MAXSPEED_AUTO_UPDATE = 50;//update()を行うときの最小経過時間
+	public static int REAL_TIMESCALE = 1;//倍速設定の初期設定
+	private boolean playing = false;//再生されているか
+	private int timescale = REAL_TIMESCALE;//倍速設定
+	private Thread thread;//リアルタイム機能のスレッド
+	private int updateinterval = NOT_AUTO_UPDATE;//リアルタイム機能の更新間隔(ミリ秒)
+	private Date update;//更新後の時間
+	private Date time;//現在の時間
+
+	//時間の処理-END-
+
+
 	private List<RailwayListener> listeners = new ArrayList<RailwayListener>();
 	private List<Line> lines = new ArrayList<Line>();
 	private List<Train> trains = new ArrayList<Train>();
+	//private List<Station> stations = new ArrayList<Station>();
+	public RailwayManager() {
+		this(new Date());
+	}
+	public RailwayManager(Date time) {
+		update = this.time = time;
+	}
 	@Override
 	public void run() {
 		while (updateinterval != NOT_AUTO_UPDATE) {
@@ -57,13 +85,6 @@ public final class RailwayManager implements Runnable {
 		}
 		update();
 	}
-	public void clearRailway() {
-		lines.clear();
-		trains.clear();
-		for (int a = 0; a < listeners.size(); a++) {
-			listeners.get(a).clearRailway(this);
-		}
-	}
 	public void loadRailwayPack(RailwayPack pack) {
 		//clearRailway();
 		List<Line> lines = pack.getLines();
@@ -73,6 +94,13 @@ public final class RailwayManager implements Runnable {
 		List<Train> trains = pack.getTrains();
 		for (int a = 0; a < trains.size(); a++) {
 			addTrain(trains.get(a));
+		}
+	}
+	public void clearRailway() {
+		lines.clear();
+		trains.clear();
+		for (int a = 0; a < listeners.size(); a++) {
+			listeners.get(a).clearRailway(this);
 		}
 	}
 	public boolean isPlaying() {
@@ -103,7 +131,7 @@ public final class RailwayManager implements Runnable {
 		return timescale;
 	}
 	public void setTimeScale(int timescale) {
-		this.timescale = timescale;
+		this.timescale = 0 <= timescale ? timescale : 0;
 	}
 	public Date getTime() {
 		return time;
@@ -118,43 +146,495 @@ public final class RailwayManager implements Runnable {
 			if (MAXSPEED_AUTO_UPDATE <= update.getTime() - old.getTime()) {
 				this.update = update;
 				long ms = (update.getTime() - old.getTime()) * timescale;
-				time.setTime(time.getTime() + ms);
 				for (int a = 0; a < ms / MAXSPEED_AUTO_UPDATE; a++) {
+					time.setTime(time.getTime() + ms / MAXSPEED_AUTO_UPDATE);
+					//列車の情報を更新
 					for (int b = 0; b < trains.size(); b++) {
 						trains.get(b).updatetick(this);
 					}
-					//衝突の判定
-					//TODO 交点を求める予定
-					for (int c = 0; c < trains.size(); c++) {
-						for (int d = 0; d < trains.size(); d++) {
-							if (c != d) {
-								Train train_a = trains.get(c);
-								Train train_b = trains.get(d);
-								double train_a_position = train_a.getPosition();
-								double train_b_position = train_b.getPosition();
-								double train_a_length = train_a.getLength();
-								double train_b_length = train_b.getLength();
-								boolean e = train_a_position + train_a_length / 2 >= train_b_position + train_b_length / 2 && train_a_position - train_a_length / 2 <= train_b_position + train_b_length / 2;
-								boolean f = train_a_position - train_a_length / 2 <= train_b_position - train_b_length / 2 && train_a_position + train_a_length / 2 >= train_b_position - train_b_length / 2;
-								double collision_point = (train_a_position + train_a_length / 2 + train_b_position - train_b_length / 2) / 2;
-								if (e) {
+
+					//--- 衝突の判定 -START- ---
+					//TODO 負担をかけやすい処理なため今後軽量化予定
+					for (int b = 0; b < trains.size(); b++) {
+						for (int c = b + 1; c < trains.size(); c++) {
+							Train train_a = trains.get(b);
+							Train train_b = trains.get(c);
+							Line train_a_runningline = train_a.getRunningLine();
+							Line train_b_runningline = train_b.getRunningLine();
+							double train_a_position = train_a.getPosition();
+							double train_b_position = train_b.getPosition();
+							double train_a_length = train_a.getLength();
+							double train_b_length = train_b.getLength();
+							if (train_a_runningline.equals(train_b_runningline)) {
+								boolean d = train_a_position + train_a_length / 2 >= train_b_position + train_b_length / 2 && train_a_position - train_a_length / 2 < train_b_position + train_b_length / 2;
+								boolean e = train_a_position - train_a_length / 2 <= train_b_position - train_b_length / 2 && train_a_position + train_a_length / 2 > train_b_position - train_b_length / 2;
+								if (d) {
+									trainCrush(train_a, train_b);
+									//TODO 衝突地点が速度と時間によりズレが生じるため、交点を求めることで問題を修正予定
+									double collision_point = (train_a_position - train_a_length / 2 + train_b_position + train_b_length / 2) / 2;
 									train_a.teleport(this, collision_point - train_a_length / 2);
 									train_b.teleport(this, collision_point + train_b_length / 2);
-								}
-								if (f) {
+								} else if (e) {
+									trainCrush(train_a, train_b);
+									//TODO 衝突地点が速度と時間によりズレが生じるため、交点を求めることで問題を修正予定
+									double collision_point = (train_a_position + train_a_length / 2 + train_b_position - train_b_length / 2) / 2;
 									train_a.teleport(this, collision_point + train_a_length / 2);
 									train_b.teleport(this, collision_point - train_b_length / 2);
 								}
-								if (e || f) {
+								if (d || e) {
 									double train_a_speed = train_a.getSpeed();
-									double train_b_speed = train_b.getSpeed();
-									train_a_speed = train_b_speed = (train_a_speed + train_b_speed) / 2;
-									trainAccident(train_a, AccidentCause.crush);
-									trainAccident(train_b, AccidentCause.crush);
+									train_a.setSpeed((train_a_speed + train_b.getSpeed()) / 2);
+									train_b.setSpeed(train_a.getSpeed());
+								}
+							} else {
+								List<Line> train_a_runroute = train_a.getRunRoute();
+								List<Line> train_b_runroute = train_b.getRunRoute();
+								double distance_a = train_a_position;
+								if (distance_a < train_a_length / 2) {
+									boolean d = false;
+									boolean invert_a = false;
+									for (int e = train_a_runroute.size() - 1; 0 <= e; e--) {
+										Line line_a = train_a_runroute.get(e);
+										if (d) {
+											if (line_a.equals(train_a_runningline)) {
+												break;
+											}
+											Line line_back_a = train_a_runroute.get(e + 1);
+											if (invert_a) {
+												List<Line> lines_out_a = line_a.getLines_out();
+												for (int f = 0; f < lines_out_a.size(); f++) {
+													if (lines_out_a.get(f).equals(line_back_a)) {
+														invert_a = !invert_a;
+														break;
+													}
+												}
+											} else {
+												List<Line> lines_in_a = line_a.getLines_in();
+												for (int f = 0; f < lines_in_a.size(); f++) {
+													if (lines_in_a.get(f).equals(line_back_a)) {
+														invert_a = !invert_a;
+														break;
+													}
+												}
+											}
+											double distance_b = train_b_position;
+											if (distance_b < train_b_length / 2) {
+												boolean f = false;
+												boolean g = false;
+												boolean invert_b = false;
+												for (int h = train_b_runroute.size() - 1; 0 <= h; h--) {
+													Line line_b = train_b_runroute.get(h);
+													if (f) {
+														if (line_b.equals(train_b_runningline)) {
+															break;
+														}
+														Line line_back_b = train_b_runroute.get(h + 1);
+														if (invert_b) {
+															List<Line> lines_out_b = line_b.getLines_out();
+															for (int i = 0; i < lines_out_b.size(); i++) {
+																if (lines_out_b.get(i).equals(line_back_b)) {
+																	invert_b = !invert_b;
+																	break;
+																}
+															}
+														} else {
+															List<Line> lines_in_b = line_b.getLines_in();
+															for (int i = 0; i < lines_in_b.size(); i++) {
+																if (lines_in_b.get(i).equals(line_back_b)) {
+																	invert_b = !invert_b;
+																	break;
+																}
+															}
+														}
+														if (line_a.equals(line_b)) {
+															double linelength = line_a.getLength();
+															double train_a_left = 0;
+															double train_a_right = 0;
+															double train_b_left = 0;
+															double train_b_right = 0;
+															if (invert_a) {
+																train_a_left = -distance_a - train_a_length / 2;
+																train_a_right = -distance_a + train_a_length / 2;
+															} else {
+																train_a_left = linelength + distance_a - train_a_length / 2;
+																train_a_right = linelength + distance_a + train_a_length / 2;
+															}
+															if (invert_b) {
+																train_b_left = -distance_b - train_b_length / 2;
+																train_b_right = -distance_b + train_b_length / 2;
+															} else {
+																train_b_left = linelength + distance_b - train_b_length / 2;
+																train_b_right = linelength + distance_b + train_b_length / 2;
+															}
+															boolean i = train_a_right >= train_b_right && train_a_left < train_b_right;
+															boolean j = train_a_left <= train_b_left && train_a_right > train_b_left;
+															if (i) {
+																trainCrush(train_a, train_b);
+																if (line_back_a.equals(line_back_b)) {
+																	//TODO 衝突地点が速度と時間によりズレが生じるため、交点を求めることで問題を修正予定
+																	double collision_point = (train_a_left + train_b_right) / 2;
+																	train_a.teleport(this, collision_point - train_a_length / 2);
+																	train_b.teleport(this, collision_point + train_b_length / 2);
+																	double train_a_speed = train_a.getSpeed();
+																	train_a.setSpeed((train_a_speed + train_b.getSpeed()) / 2);
+																	train_b.setSpeed(train_a.getSpeed());
+																} else {
+																	train_a.setSpeed(0);
+																	train_b.setSpeed(0);
+																}
+															} else 	if (j) {
+																trainCrush(train_a, train_b);
+																if (line_back_a.equals(line_back_b)) {
+																	//TODO 衝突地点が速度と時間によりズレが生じるため、交点を求めることで問題を修正予定
+																	double collision_point = (train_a_right + train_b_left) / 2;
+																	train_a.teleport(this, collision_point + train_a_length / 2);
+																	train_b.teleport(this, collision_point - train_b_length / 2);
+																	double train_a_speed = train_a.getSpeed();
+																	train_a.setSpeed((train_a_speed + train_b.getSpeed()) / 2);
+																	train_b.setSpeed(train_a.getSpeed());
+																} else {
+																	train_a.setSpeed(0);
+																	train_b.setSpeed(0);
+																}
+															}
+															g = true;
+															break;
+														}
+														if ((distance_b += line_b.getLength()) >= train_b_length) {
+															break;
+														}
+													} else if (line_b.equals(train_b_runningline)) {
+														f = true;
+													}
+												}
+												if (g) {
+													break;
+												}
+											} else if ((distance_b = train_b_runningline.getLength() - distance_b) < train_b_length) {
+												boolean f = false;
+												boolean g = false;
+												boolean invert_b = false;
+												for (int h = 0; h < train_b_runroute.size(); h++) {
+													Line line_b = train_b_runroute.get(h);
+													if (f) {
+														if (line_b.equals(train_b_runningline)) {
+															break;
+														}
+														Line line_back_b = train_b_runroute.get(h - 1);
+														if (invert_b) {
+															List<Line> lines_in_b = line_b.getLines_in();
+															for (int i = 0; i < lines_in_b.size(); i++) {
+																if (lines_in_b.get(i).equals(line_back_b)) {
+																	invert_b = !invert_b;
+																	break;
+																}
+															}
+														} else {
+															List<Line> lines_out_b = line_b.getLines_out();
+															for (int i = 0; i < lines_out_b.size(); i++) {
+																if (lines_out_b.get(i).equals(line_back_b)) {
+																	invert_b = !invert_b;
+																	break;
+																}
+															}
+														}
+														if (line_a.equals(line_b)) {
+															double linelength = line_a.getLength();
+															double train_a_left = 0;
+															double train_a_right = 0;
+															double train_b_left = 0;
+															double train_b_right = 0;
+															if (invert_a) {
+																train_a_left = -distance_a - train_a_length / 2;
+																train_a_right = -distance_a + train_a_length / 2;
+															} else {
+																train_a_left = linelength + distance_a - train_a_length / 2;
+																train_a_right = linelength + distance_a + train_a_length / 2;
+															}
+															if (invert_b) {
+																train_b_left = linelength + distance_b - train_b_length / 2;
+																train_b_right = linelength + distance_b + train_b_length / 2;
+															} else {
+																train_b_left = -distance_b - train_b_length / 2;
+																train_b_right = -distance_b + train_b_length / 2;
+															}
+															boolean i = train_a_right >= train_b_right && train_a_left < train_b_right;
+															boolean j = train_a_left <= train_b_left && train_a_right > train_b_left;
+															if (i) {
+																trainCrush(train_a, train_b);
+																if (line_back_a.equals(line_back_b)) {
+																	//TODO 衝突地点が速度と時間によりズレが生じるため、交点を求めることで問題を修正予定
+																	double collision_point = (train_a_left + train_b_right) / 2;
+																	train_a.teleport(this, collision_point - train_a_length / 2);
+																	train_b.teleport(this, collision_point + train_b_length / 2);
+																	double train_a_speed = train_a.getSpeed();
+																	train_a.setSpeed((train_a_speed + train_b.getSpeed()) / 2);
+																	train_b.setSpeed(train_a.getSpeed());
+																} else {
+																	train_a.setSpeed(0);
+																	train_b.setSpeed(0);
+																}
+															} else 	if (j) {
+																trainCrush(train_a, train_b);
+																if (line_back_a.equals(line_back_b)) {
+																	//TODO 衝突地点が速度と時間によりズレが生じるため、交点を求めることで問題を修正予定
+																	double collision_point = (train_a_right + train_b_left) / 2;
+																	train_a.teleport(this, collision_point + train_a_length / 2);
+																	train_b.teleport(this, collision_point - train_b_length / 2);
+																	double train_a_speed = train_a.getSpeed();
+																	train_a.setSpeed((train_a_speed + train_b.getSpeed()) / 2);
+																	train_b.setSpeed(train_a.getSpeed());
+																} else {
+																	train_a.setSpeed(0);
+																	train_b.setSpeed(0);
+																}
+															}
+															g = true;
+															break;
+														}
+														if ((distance_b += line_b.getLength()) >= train_b_length) {
+															break;
+														}
+													} else if (line_b.equals(train_b_runningline)) {
+														f = true;
+													}
+												}
+												if (g) {
+													break;
+												}
+											}
+											if ((distance_a += line_a.getLength()) >= train_a_length) {
+												break;
+											}
+										} else if (line_a.equals(train_a_runningline)) {
+											d = true;
+										}
+									}
+								} else if ((distance_a = train_a_runningline.getLength() - distance_a) < train_a_length) {
+									boolean d = false;
+									boolean invert_a = false;
+									for (int e = 0; e < train_a_runroute.size(); e++) {
+										Line line_a = train_a_runroute.get(e);
+										if (d) {
+											if (line_a.equals(train_a_runningline)) {
+												break;
+											}
+											Line line_back_a = train_a_runroute.get(e - 1);
+											if (invert_a) {
+												List<Line> lines_in_a = line_a.getLines_in();
+												for (int f = 0; f < lines_in_a.size(); f++) {
+													if (lines_in_a.get(f).equals(line_back_a)) {
+														invert_a = !invert_a;
+														break;
+													}
+												}
+											} else {
+												List<Line> lines_out_a = line_a.getLines_out();
+												for (int f = 0; f < lines_out_a.size(); f++) {
+													if (lines_out_a.get(f).equals(line_back_a)) {
+														invert_a = !invert_a;
+														break;
+													}
+												}
+											}
+											double distance_b = train_b_position;
+											if (distance_b < train_b_length / 2) {
+												boolean f = false;
+												boolean g = false;
+												boolean invert_b = false;
+												for (int h = train_b_runroute.size() - 1; 0 <= h; h--) {
+													Line line_b = train_b_runroute.get(h);
+													if (f) {
+														if (line_b.equals(train_b_runningline)) {
+															break;
+														}
+														Line line_back_b = train_b_runroute.get(h + 1);
+														if (invert_b) {
+															List<Line> lines_out_b = line_b.getLines_out();
+															for (int i = 0; i < lines_out_b.size(); i++) {
+																if (lines_out_b.get(i).equals(line_back_b)) {
+																	invert_b = !invert_b;
+																	break;
+																}
+															}
+														} else {
+															List<Line> lines_in_b = line_b.getLines_in();
+															for (int i = 0; i < lines_in_b.size(); i++) {
+																if (lines_in_b.get(i).equals(line_back_b)) {
+																	invert_b = !invert_b;
+																	break;
+																}
+															}
+														}
+														if (line_a.equals(line_b)) {
+															double linelength = line_a.getLength();
+															double train_a_left = 0;
+															double train_a_right = 0;
+															double train_b_left = 0;
+															double train_b_right = 0;
+															if (invert_a) {
+																train_a_left = linelength + distance_a - train_a_length / 2;
+																train_a_right = linelength + distance_a + train_a_length / 2;
+															} else {
+																train_a_left = -distance_a - train_a_length / 2;
+																train_a_right = -distance_a + train_a_length / 2;
+															}
+															if (invert_b) {
+																train_b_left = -distance_b - train_b_length / 2;
+																train_b_right = -distance_b + train_b_length / 2;
+															} else {
+																train_b_left = linelength + distance_b - train_b_length / 2;
+																train_b_right = linelength + distance_b + train_b_length / 2;
+															}
+															boolean i = train_a_right >= train_b_right && train_a_left < train_b_right;
+															boolean j = train_a_left <= train_b_left && train_a_right > train_b_left;
+															if (i) {
+																trainCrush(train_a, train_b);
+																if (line_back_a.equals(line_back_b)) {
+																	//TODO 衝突地点が速度と時間によりズレが生じるため、交点を求めることで問題を修正予定
+																	double collision_point = (train_a_left + train_b_right) / 2;
+																	train_a.teleport(this, collision_point - train_a_length / 2);
+																	train_b.teleport(this, collision_point + train_b_length / 2);
+																	double train_a_speed = train_a.getSpeed();
+																	train_a.setSpeed((train_a_speed + train_b.getSpeed()) / 2);
+																	train_b.setSpeed(train_a.getSpeed());
+																} else {
+																	train_a.setSpeed(0);
+																	train_b.setSpeed(0);
+																}
+															} else 	if (j) {
+																trainCrush(train_a, train_b);
+																if (line_back_a.equals(line_back_b)) {
+																	//TODO 衝突地点が速度と時間によりズレが生じるため、交点を求めることで問題を修正予定
+																	double collision_point = (train_a_right + train_b_left) / 2;
+																	train_a.teleport(this, collision_point + train_a_length / 2);
+																	train_b.teleport(this, collision_point - train_b_length / 2);
+																	double train_a_speed = train_a.getSpeed();
+																	train_a.setSpeed((train_a_speed + train_b.getSpeed()) / 2);
+																	train_b.setSpeed(train_a.getSpeed());
+																} else {
+																	train_a.setSpeed(0);
+																	train_b.setSpeed(0);
+																}
+															}
+															g = true;
+															break;
+														}
+														if ((distance_b += line_b.getLength()) >= train_b_length) {
+															break;
+														}
+													} else if (line_b.equals(train_b_runningline)) {
+														f = true;
+													}
+												}
+												if (g) {
+													break;
+												}
+											} else if ((distance_b = train_b_runningline.getLength() - distance_b) < train_b_length) {
+												boolean f = false;
+												boolean g = false;
+												boolean invert_b = false;
+												for (int h = 0; h < train_b_runroute.size(); h++) {
+													Line line_b = train_b_runroute.get(h);
+													if (f) {
+														if (line_b.equals(train_b_runningline)) {
+															break;
+														}
+														Line line_back_b = train_b_runroute.get(h - 1);
+														if (invert_b) {
+															List<Line> lines_in_b = line_b.getLines_in();
+															for (int i = 0; i < lines_in_b.size(); i++) {
+																if (lines_in_b.get(i).equals(line_back_b)) {
+																	invert_b = !invert_b;
+																	break;
+																}
+															}
+														} else {
+															List<Line> lines_out_b = line_b.getLines_out();
+															for (int i = 0; i < lines_out_b.size(); i++) {
+																if (lines_out_b.get(i).equals(line_back_b)) {
+																	invert_b = !invert_b;
+																	break;
+																}
+															}
+														}
+														if (line_a.equals(line_b)) {
+															double linelength = line_a.getLength();
+															double train_a_left = 0;
+															double train_a_right = 0;
+															double train_b_left = 0;
+															double train_b_right = 0;
+															if (invert_a) {
+																train_a_left = linelength + distance_a - train_a_length / 2;
+																train_a_right = linelength + distance_a + train_a_length / 2;
+															} else {
+																train_a_left = -distance_a - train_a_length / 2;
+																train_a_right = -distance_a + train_a_length / 2;
+															}
+															if (invert_b) {
+																train_b_left = linelength + distance_b - train_b_length / 2;
+																train_b_right = linelength + distance_b + train_b_length / 2;
+															} else {
+																train_b_left = -distance_b - train_b_length / 2;
+																train_b_right = -distance_b + train_b_length / 2;
+															}
+															boolean i = train_a_right >= train_b_right && train_a_left < train_b_right;
+															boolean j = train_a_left <= train_b_left && train_a_right > train_b_left;
+															if (i) {
+																trainCrush(train_a, train_b);
+																if (line_back_a.equals(line_back_b)) {
+																	//TODO 衝突地点が速度と時間によりズレが生じるため、交点を求めることで問題を修正予定
+																	double collision_point = (train_a_left + train_b_right) / 2;
+																	train_a.teleport(this, collision_point - train_a_length / 2);
+																	train_b.teleport(this, collision_point + train_b_length / 2);
+																	double train_a_speed = train_a.getSpeed();
+																	train_a.setSpeed((train_a_speed + train_b.getSpeed()) / 2);
+																	train_b.setSpeed(train_a.getSpeed());
+																} else {
+																	train_a.setSpeed(0);
+																	train_b.setSpeed(0);
+																}
+															} else 	if (j) {
+																trainCrush(train_a, train_b);
+																if (line_back_a.equals(line_back_b)) {
+																	//TODO 衝突地点が速度と時間によりズレが生じるため、交点を求めることで問題を修正予定
+																	double collision_point = (train_a_right + train_b_left) / 2;
+																	train_a.teleport(this, collision_point + train_a_length / 2);
+																	train_b.teleport(this, collision_point - train_b_length / 2);
+																	double train_a_speed = train_a.getSpeed();
+																	train_a.setSpeed((train_a_speed + train_b.getSpeed()) / 2);
+																	train_b.setSpeed(train_a.getSpeed());
+																} else {
+																	train_a.setSpeed(0);
+																	train_b.setSpeed(0);
+																}
+															}
+															g = true;
+															break;
+														}
+														if ((distance_b += line_b.getLength()) >= train_b_length) {
+															break;
+														}
+													} else if (line_b.equals(train_b_runningline)) {
+														f = true;
+													}
+												}
+												if (g) {
+													break;
+												}
+											}
+											if ((distance_a += line_a.getLength()) >= train_a_length) {
+												break;
+											}
+										} else if (line_a.equals(train_a_runningline)) {
+											d = true;
+										}
+									}
 								}
 							}
 						}
 					}
+					//--- 衝突の判定  -END-  ---
 				}
 				for (int a = 0; a < listeners.size(); a++) {
 					listeners.get(a).updated(this);
@@ -174,12 +654,21 @@ public final class RailwayManager implements Runnable {
 		}
 	}
 
-	public void trainAccident(Train train, AccidentCause accidentcause) {
-		if (!train.getAccidentCause().isBroken()) {
-			train.Accident(accidentcause);
+	public void trainDerailment(Train train) {
+		if (!train.isDerailment()) {
+			double speed = train.getSpeed();
+			train.derailment();
 			for (int a = 0; a < listeners.size(); a++) {
-				listeners.get(a).trainAccident(this, train, accidentcause);
+				listeners.get(a).trainDerailment(this, train, speed);
 			}
+		}
+	}
+
+	public void trainCrush(Train train_a, Train train_b) {
+		train_a.crush();
+		train_b.crush();
+		for (int a = 0; a < listeners.size(); a++) {
+			listeners.get(a).trainCrush(this, train_a, train_b);
 		}
 	}
 

@@ -10,6 +10,7 @@ import net.densyakun.trainsim.Station;
 import net.densyakun.trainsim.Train;
 import net.densyakun.trainsim.TrainDriver;
 import net.densyakun.trainsim.pack.RailwayPack;
+//山手線の鉄道網データ(開発中)
 public final class RailwayPack_YamanoteLine extends RailwayPack {
 	public RailwayPack_YamanoteLine() {
 		Line line = new Line("山手線外回り", 1067, 90);

@@ -1,4 +1,6 @@
 package net.densyakun.trainsim;
+
+//路線の帯色(二色ある場合はsub***も使用する)
 public final class LineColor {
 	private int mainred;
 	private int maingreen;

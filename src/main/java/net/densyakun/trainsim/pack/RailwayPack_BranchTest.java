@@ -8,6 +8,7 @@ import net.densyakun.trainsim.Rail;
 import net.densyakun.trainsim.Train;
 import net.densyakun.trainsim.TrainDriver;
 import net.densyakun.trainsim.pack.jreast.Train_E235;
+//分岐テスト用の鉄道網データ。
 public final class RailwayPack_BranchTest extends RailwayPack {
 	public RailwayPack_BranchTest() {
 		Line line_0 = new Line("test" + getLines().size(), 1067, 320);
