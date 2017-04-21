@@ -20,7 +20,7 @@ public class Train implements Serializable {
 	private double brake = 0;//減速(0~1)
 	private boolean broken = false;//車両が壊れているか
 	private boolean derailment = false;//脱線しているか
-	private boolean crush = false;//衝突しているか
+	private boolean crush = false;//衝突したか
 	private boolean moved = false;//車両を動かしたことがあるか
 
 	//TODO 前後の運転台・乗務員室の操作を分ける
@@ -30,15 +30,15 @@ public class Train implements Serializable {
 
 	//列車が走行するルートの全区間。
 	//分岐器や列車の場所によって可変する。
-	//隣の路線がある場合は必ず入れるため、同じ路線がループしている場合は3つ存在する。
+	//前後の路線がある場合は必ず入れるため、同じ路線がループしている場合は3つ存在する。
 	//事故が起きると事故時のルートのままになる。
 	//理由は、ポイントを走行中に分岐器が作動したことにより脱線した場合、
 	//分岐器が作動したあとのルートに変わってしまい、列車が別の線路に移動してしまうため。
 	private List<Line> runroute;
 
 	private List<Line> runninglines;//列車が走行している使用中の路線
-	private boolean invert = false;//列車の向きが逆になっているかどうか
-	private boolean loop = false;//走行中の路線が環状線かどうか
+	private boolean invert = false;//列車の向きが逆になっているか
+	private boolean loop = false;//走行中の路線が環状線になっているか
 	public Train(String name, TrainSet trainset) {
 		this.name = name;
 		this.trainset = trainset;
@@ -325,14 +325,12 @@ public class Train implements Serializable {
 				int branch_in = line.getBranch_in();
 				if (0 <= branch_in) {
 					Line line_in = line.getLines_in().get(branch_in);
-					//if (6 <= lines.size()) {
-						for (int a = 0; a < lines.size(); a++) {
-							if (lines.get(a).equals(line_in)) {
-								loop = true;
-								return;
-							}
+					for (int a = 0; a < lines.size(); a++) {
+						if (lines.get(a).equals(line_in)) {
+							loop = true;
+							return;
 						}
-					//}
+					}
 					lines.add(line_in);
 					int line_in_branch_out = line_in.getBranch_out();
 					if (0 <= line_in_branch_out) {
@@ -354,14 +352,12 @@ public class Train implements Serializable {
 				int branch_out = line.getBranch_out();
 				if (0 <= branch_out) {
 					Line line_out = line.getLines_out().get(branch_out);
-					//if (6 <= lines.size()) {
-						for (int a = 0; a < lines.size(); a++) {
-							if (lines.get(a).equals(line_out)) {
-								loop = true;
-								return;
-							}
+					for (int a = 0; a < lines.size(); a++) {
+						if (lines.get(a).equals(line_out)) {
+							loop = true;
+							return;
 						}
-					//}
+					}
 					lines.add(line_out);
 					int line_out_branch_in = line_out.getBranch_in();
 					if (0 <= line_out_branch_in) {
@@ -385,14 +381,12 @@ public class Train implements Serializable {
 				int branch_out = line.getBranch_out();
 				if (0 <= branch_out) {
 					Line line_out = line.getLines_out().get(branch_out);
-					//if (6 <= lines.size()) {
-						for (int a = 0; a < lines.size(); a++) {
-							if (lines.get(a).equals(line_out)) {
-								loop = true;
-								return;
-							}
+					for (int a = 0; a < lines.size(); a++) {
+						if (lines.get(a).equals(line_out)) {
+							loop = true;
+							return;
 						}
-					//}
+					}
 					lines.add(0, line_out);
 					int line_out_branch_out = line_out.getBranch_out();
 					if (0 <= line_out_branch_out) {
@@ -414,14 +408,12 @@ public class Train implements Serializable {
 				int branch_in = line.getBranch_in();
 				if (0 <= branch_in) {
 					Line line_in = line.getLines_in().get(branch_in);
-					//if (6 <= lines.size()) {
-						for (int a = 0; a < lines.size(); a++) {
-							if (lines.get(a).equals(line_in)) {
-								loop = true;
-								return;
-							}
+					for (int a = 0; a < lines.size(); a++) {
+						if (lines.get(a).equals(line_in)) {
+							loop = true;
+							return;
 						}
-					//}
+					}
 					lines.add(0, line_in);
 					int line_in_branch_in = line_in.getBranch_in();
 					if (0 <= line_in_branch_in) {
@@ -475,9 +467,8 @@ public class Train implements Serializable {
 		runninglines = lines;
 	}
 	/**
-	 * trainからstationまでの距離を返します。
+	 * trainからstationまでの最短ルートを計算し、距離を返します。
 	 * 距離がlimitdistanceを超えることはありません。
-	 * (注意: 列車の向き関係なく計算していることに注意)
 	 * @param limitdistance 距離の限界
 	 * @param train 列車
 	 * @param station 駅(目的地)
@@ -487,9 +478,9 @@ public class Train implements Serializable {
 		Line runningline = getRunningLine();
 		double a = runningline.getRailStartPosition(station);
 		if (a == -1) {//現在の線路に次の停車駅がないか
-			Double b = aaa(0, limitdistance, station, new ArrayList<Line>(), getRunningLine(), true, invert);
+			Double b = aab(0, limitdistance, station, new ArrayList<Line>(), getRunningLine(), true, invert);
 			if (b == null) {
-				if ((b = aaa(0, limitdistance, station, new ArrayList<Line>(), getRunningLine(), false, invert)) != null) {
+				if ((b = aab(0, limitdistance, station, new ArrayList<Line>(), getRunningLine(), false, invert)) != null) {
 					return -b - getPosition() - station.getLength() / 2;
 				}
 			} else {
@@ -501,96 +492,127 @@ public class Train implements Serializable {
 		}
 		return null;
 	}
-	private static Double aaa(double distance, double limitdistance, Station station, List<Line> lines, Line line, boolean right, boolean invert) {
+	private Double aab(double distance, double limitdistance, Station station, List<Line> lines, Line line, boolean right, boolean invert) {
 		//接続する線路から駅までの距離を求める(ポイントが接続していなくてもポイントを切り替えれば行けるような場所でも良い)
 		if (limitdistance <= distance) {
 			return limitdistance;
 		}
 		if (right) {
 			if (invert) {
-				int branch_in = line.getBranch_in();
-				if (0 <= branch_in) {
-					Line line_in = line.getLines_in().get(branch_in);
-					//if (6 <= lines.size()) {
-						for (int a = 0; a < lines.size(); a++) {
-							if (lines.get(a).equals(line_in)) {
-								loop = true;
-								return;
-							}
+				List<Line> lines_in = line.getLines_in();
+				for (int a = 0; a < lines_in.size(); a++) {
+					Line line_in = lines_in.get(a);
+					for (int b = 0; b < lines.size(); b++) {
+						if (lines.get(b).equals(line_in)) {
+							return null;
 						}
-					//}
+					}
 					lines.add(line_in);
 					int line_in_branch_out = line_in.getBranch_out();
 					if (0 <= line_in_branch_out) {
 						Line line_in_out = line_in.getLines_out().get(line_in_branch_out);
 						if (line.equals(line_in_out)) {
-							aaa(lines, line_in, true, true);
+							return aab(distance, limitdistance, station, lines, line_in, true, true);
 						}
 					} else {
 						int line_in_branch_in = line_in.getBranch_in();
 						if (0 <= line_in_branch_in) {
 							Line line_in_in = line_in.getLines_in().get(line_in_branch_in);
 							if (line.equals(line_in_in)) {
-								aaa(lines, line_in, true, false);
+								return aab(distance, limitdistance, station, lines, line_in, true, false);
 							}
 						}
 					}
 				}
 			} else {
-
-				double a = line.getRailStartPosition(station);
-				if (a != -1) {
-					return distance + a;
-				}
-				if (0 <= line.getBranch_out()) {
-					Line line_out = line.getLines_out().get(line.getBranch_out());
-					if (3 <= lines.size()) {
-						for (int b = 0; b < lines.size(); b++) {
-							if (lines.get(b).equals(line_out)) {
-								return null;
-							}
+				List<Line> lines_out = line.getLines_out();
+				for (int a = 0; a < lines_out.size(); a++) {
+					Line line_out = lines_out.get(a);
+					for (int b = 0; b < lines.size(); b++) {
+						if (lines.get(b).equals(line_out)) {
+							return null;
 						}
 					}
-					lines.add(line_out);
-					return aaa(distance, limitdistance, station, lines, line_out, true);
-				}
-
-				int branch_out = line.getBranch_out();
-				if (0 <= branch_out) {
-					Line line_out = line.getLines_out().get(branch_out);
-					//if (6 <= lines.size()) {
-						for (int a = 0; a < lines.size(); a++) {
-							if (lines.get(a).equals(line_out)) {
-								loop = true;
-								return;
-							}
-						}
-					//}
 					lines.add(line_out);
 					int line_out_branch_in = line_out.getBranch_in();
 					if (0 <= line_out_branch_in) {
 						Line line_out_in = line_out.getLines_in().get(line_out_branch_in);
 						if (line.equals(line_out_in)) {
-							aaa(lines, line_out, true, false);
+							return aab(distance, limitdistance, station, lines, line_out, true, false);
 						}
 					} else {
 						int line_out_branch_out = line_out.getBranch_out();
 						if (0 <= line_out_branch_out) {
 							Line line_out_out = line_out.getLines_out().get(line_out_branch_out);
 							if (line.equals(line_out_out)) {
-								aaa(lines, line_out, true, true);
+								return aab(distance, limitdistance, station, lines, line_out, true, true);
 							}
 						}
 					}
 				}
 			}
 		} else {
+
+			if (invert) {
+				int branch_out = line.getBranch_out();
+				if (0 <= branch_out) {
+					Line line_out = line.getLines_out().get(branch_out);
+					for (int a = 0; a < lines.size(); a++) {
+						if (lines.get(a).equals(line_out)) {
+							return null;
+						}
+					}
+					lines.add(0, line_out);
+					int line_out_branch_out = line_out.getBranch_out();
+					if (0 <= line_out_branch_out) {
+						Line line_out_out = line_out.getLines_out().get(line_out_branch_out);
+						if (line.equals(line_out_out)) {
+							return aab(distance, limitdistance, station, lines, line_out, false, true);
+						}
+					} else {
+						int line_out_branch_in = line_out.getBranch_in();
+						if (0 <= line_out_branch_in) {
+							Line line_out_in = line_out.getLines_in().get(line_out_branch_in);
+							if (line.equals(line_out_in)) {
+								return aab(distance, limitdistance, station, lines, line_out, false, false);
+							}
+						}
+					}
+				}
+			} else {
+				int branch_in = line.getBranch_in();
+				if (0 <= branch_in) {
+					Line line_in = line.getLines_in().get(branch_in);
+					for (int a = 0; a < lines.size(); a++) {
+						if (lines.get(a).equals(line_in)) {
+							return null;
+						}
+					}
+					lines.add(0, line_in);
+					int line_in_branch_in = line_in.getBranch_in();
+					if (0 <= line_in_branch_in) {
+						Line line_in_in = line_in.getLines_in().get(line_in_branch_in);
+						if (line.equals(line_in_in)) {
+							return aab(distance, limitdistance, station, lines, line_in, false, false);
+						}
+					} else {
+						int line_in_branch_out = line_in.getBranch_out();
+						if (0 <= line_in_branch_out) {
+							Line line_in_out = line_in.getLines_out().get(line_in_branch_out);
+							if (line.equals(line_in_out)) {
+								return aab(distance, limitdistance, station, lines, line_in, false, true);
+							}
+						}
+					}
+				}
+			}
+
 			double a = line.getRailStartPosition(station);
 			if (a != -1) {
-				return distance + line.getLength() - a;
+				return Math.min(distance + line.getLength() - a, limitdistance);
 			}
-			if (0 <= line.getBranch_in()) {
-				Line line_in = line.getLines_in().get(line.getBranch_in());
+			//if (0 <= line.getBranch_in()) {
+				/*Line line_in = line.getLines_in().get(line.getBranch_in());
 				if (3 <= lines.size()) {
 					for (int b = 0; b < lines.size(); b++) {
 						if (lines.get(b).equals(line_in)) {
@@ -598,74 +620,10 @@ public class Train implements Serializable {
 						}
 					}
 				}
-				lines.add(0, line_in);
-				return aaa(distance, limitdistance, station, lines, line_in, false);
-			}
+				lines.add(0, line_in);*/
+				//return aab(distance, limitdistance, station, lines, line_in, false, false);
+			//}
 		}
 		return null;
-
-		if (right) {
-
-		} else {
-			if (invert) {
-				int branch_out = line.getBranch_out();
-				if (0 <= branch_out) {
-					Line line_out = line.getLines_out().get(branch_out);
-					//if (6 <= lines.size()) {
-						for (int a = 0; a < lines.size(); a++) {
-							if (lines.get(a).equals(line_out)) {
-								loop = true;
-								return;
-							}
-						}
-					//}
-					lines.add(0, line_out);
-					int line_out_branch_out = line_out.getBranch_out();
-					if (0 <= line_out_branch_out) {
-						Line line_out_out = line_out.getLines_out().get(line_out_branch_out);
-						if (line.equals(line_out_out)) {
-							aaa(lines, line_out, false, true);
-						}
-					} else {
-						int line_out_branch_in = line_out.getBranch_in();
-						if (0 <= line_out_branch_in) {
-							Line line_out_in = line_out.getLines_in().get(line_out_branch_in);
-							if (line.equals(line_out_in)) {
-								aaa(lines, line_out, false, false);
-							}
-						}
-					}
-				}
-			} else {
-				int branch_in = line.getBranch_in();
-				if (0 <= branch_in) {
-					Line line_in = line.getLines_in().get(branch_in);
-					//if (6 <= lines.size()) {
-						for (int a = 0; a < lines.size(); a++) {
-							if (lines.get(a).equals(line_in)) {
-								loop = true;
-								return;
-							}
-						}
-					//}
-					lines.add(0, line_in);
-					int line_in_branch_in = line_in.getBranch_in();
-					if (0 <= line_in_branch_in) {
-						Line line_in_in = line_in.getLines_in().get(line_in_branch_in);
-						if (line.equals(line_in_in)) {
-							aaa(lines, line_in, false, false);
-						}
-					} else {
-						int line_in_branch_out = line_in.getBranch_out();
-						if (0 <= line_in_branch_out) {
-							Line line_in_out = line_in.getLines_out().get(line_in_branch_out);
-							if (line.equals(line_in_out)) {
-								aaa(lines, line_in, false, true);
-							}
-						}
-					}
-				}
-			}
-		}
 	}
 }
