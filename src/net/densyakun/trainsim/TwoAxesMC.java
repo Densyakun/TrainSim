@@ -9,13 +9,15 @@ public final class TwoAxesMC extends MasterController implements Serializable {
 	 */
 	private static final long serialVersionUID = 1L;
 
-	public static final int nonstagebrake = -1;//無段階ブレーキ
-	private int maxaccel;//加速ノッチ数
-	private int maxbrake;//ブレーキノッチ数(非常ノッチを除く)
+	public static final int nonstagebrake = -1;// 無段階ブレーキ
+	private int maxaccel;// 加速ノッチ数
+	private int maxbrake;// ブレーキノッチ数(非常ノッチを除く)
+
 	public TwoAxesMC(int maxaccel, int maxbrake) {
 		this.maxaccel = maxaccel < 3 ? 3 : maxaccel > 30 ? 30 : maxaccel;
 		this.maxbrake = maxbrake == nonstagebrake ? maxbrake : maxbrake < 3 ? 3 : maxbrake > 30 ? 30 : maxbrake;
 	}
+
 	@Override
 	public void setPower(Train train, double accel, double brake) {
 		brake = brake < 0 ? 0 : brake > 1 ? 1 : brake;

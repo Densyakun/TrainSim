@@ -41,7 +41,7 @@ public class RailwayPack_FreeGaugeTest extends RailwayPack {
 		addLine(gaugechangeline);
 		addLine(line2);
 		Train train = new Train("(ﾟ∀ﾟ)ｱﾋｬ", new TrainSet("test", new Car[]{new Car("test_car0", 20)}, TrainSet.FREE_GAUGE_TRAIN, 240, 10.0, 10.0, new TwoAxesMC(3, 3)));
-		train.place(line, 105, false);
+		train.place(line, 300, false);
 		TrainDriver driver = new TrainDriver("電車君");
 		List<Station> stopstationlist = new ArrayList<Station>();
 		stopstationlist.add(sta);
